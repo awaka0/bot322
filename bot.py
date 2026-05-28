@@ -6,9 +6,8 @@ from aiogram import Bot, Dispatcher, types
 from aiogram.filters import Command
 from aiogram.types import Message, CallbackQuery, InlineKeyboardMarkup, InlineKeyboardButton
 from aiogram.fsm.storage.memory import MemoryStorage
-import os 
 
-BOT_TOKEN = os.getenv("BOT_TOKEN")
+TOKEN = "8123456789:AAHdqTcvCH1vGWJxfSeofSAs0KLaPjPsrQW"  # ваш реальный токен
 bot = Bot(token=TOKEN)
 dp = Dispatcher(storage=MemoryStorage())
 
