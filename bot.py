@@ -7,7 +7,7 @@ from aiogram.filters import Command
 from aiogram.types import Message, CallbackQuery, InlineKeyboardMarkup, InlineKeyboardButton
 from aiogram.fsm.storage.memory import MemoryStorage
 
-TOKEN = "8123456789:AAHdqTcvCH1vGWJxfSeofSAs0KLaPjPsrQW"  # ваш реальный токен
+TOKEN = "8826297295:AAEnlz3hQHw6sfSEoDxo7Nfq8-_sY4E7E3Q"  # ваш реальный токен
 bot = Bot(token=TOKEN)
 dp = Dispatcher(storage=MemoryStorage())
 
