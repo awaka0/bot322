@@ -1,13 +1,19 @@
 import asyncio
 import random
 import time
+import os
 import aiosqlite
 from aiogram import Bot, Dispatcher, types
 from aiogram.filters import Command
 from aiogram.types import Message, CallbackQuery, InlineKeyboardMarkup, InlineKeyboardButton
 from aiogram.fsm.storage.memory import MemoryStorage
 
-TOKEN = "8123456789:AAHdqTcvCH1vGWJxfSeofSAs0KLaPjPsrQW"  # ваш реальный токен
+# ========== ТОКЕН ИЗ ПЕРЕМЕННОЙ ОКРУЖЕНИЯ ==========
+TOKEN = os.getenv("BOT_TOKEN")
+if not TOKEN:
+    print("❌ ОШИБКА: Не найден BOT_TOKEN в переменных окружения!")
+    exit(1)
+
 bot = Bot(token=TOKEN)
 dp = Dispatcher(storage=MemoryStorage())
 
