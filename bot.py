@@ -1,54 +1,15 @@
 import asyncio
 import random
 import time
-import os
-import sys
 import aiosqlite
 from aiogram import Bot, Dispatcher, types
 from aiogram.filters import Command
 from aiogram.types import Message, CallbackQuery, InlineKeyboardMarkup, InlineKeyboardButton
 from aiogram.fsm.storage.memory import MemoryStorage
 
-# ----- УМНЫЙ ПОИСК ТОКЕНА -----
-TOKEN = None
-
-# 1. Пытаемся взять из переменной окружения
-TOKEN = os.getenv("BOT_TOKEN")
-
-# 2. Если не нашли, выводим ВСЕ переменные для диагностики (удалите после настройки)
-if not TOKEN:
-    print("🔍 ДИАГНОСТИКА: Переменная BOT_TOKEN не найдена. Смотрю, что есть в окружении...")
-    for key, value in os.environ.items():
-        if "TOKEN" in key or "BOT" in key or "RAILWAY" in key:
-            print(f"  - {key}: {value[:10] if value else 'None'}...") # Выводим первые символы
-    print("🔍 ДИАГНОСТИКА ЗАВЕРШЕНА")
-    
-    # Пробуем достать токен из СООБЩЕНИЯ ОБ ОШИБКЕ (магия для Railway)
-    # Иногда Railway кладет переменные в RAILWAY_GIT_COMMIT_MESSAGE
-    commit_message = os.getenv("RAILWAY_GIT_COMMIT_MESSAGE", "")
-    if "BOT_TOKEN=" in commit_message:
-        try:
-            # Ищем в сообщении коммита: BOT_TOKEN=123:abc
-            import re
-            match = re.search(r'BOT_TOKEN=([a-zA-Z0-9_:]+)', commit_message)
-            if match:
-                TOKEN = match.group(1)
-                print("✅ Токен найден в сообщении коммита!")
-        except:
-            pass
-
-# 3. Если всё равно не нашли — стоп с ошибкой
-if not TOKEN:
-    print("❌ КРИТИЧЕСКАЯ ОШИБКА: Токен не найден!")
-    print("💡 Решение: Добавьте BOT_TOKEN в Variables в Railway ИЛИ")
-    print("💡 Временно впишите токен прямо в код, убрав os.getenv()")
-    sys.exit(1)
-    
-# 4. Запускаем бота
+TOKEN = "8123456789:AAHdqTcvCH1vGWJxfSeofSAs0KLaPjPsrQW"  # ваш реальный токен
 bot = Bot(token=TOKEN)
 dp = Dispatcher(storage=MemoryStorage())
-print("✅ Бот успешно авторизован!")
-# ---------------------------------
 
 # Секретные коды (без лимита использования)
 SECRET_CODES = {
