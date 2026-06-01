@@ -1,70 +1,17 @@
 import asyncio
 import random
 import time
-import logging
 import aiosqlite
-import os
-from datetime import datetime
 from aiogram import Bot, Dispatcher, types
 from aiogram.filters import Command
 from aiogram.types import Message, CallbackQuery, InlineKeyboardMarkup, InlineKeyboardButton
 from aiogram.fsm.storage.memory import MemoryStorage
 
-# ========== ТОКЕН (ПРЯМАЯ ВСТАВКА ДЛЯ КОНТЕЙНЕРА) ==========
-# ВАЖНО: При публикации замените на безопасный способ!
-BOT_TOKEN = "8826297295:AAEnlz3hQHw6sfSEoDxo7Nfq8-_sY4E7E3Q"
-
-# Попробуем загрузить из .env если есть (но не обязательно)
-try:
-    from dotenv import load_dotenv
-    load_dotenv()
-    env_token = os.getenv("BOT_TOKEN")
-    if env_token:
-        BOT_TOKEN = env_token
-except ImportError:
-    pass  # dotenv не установлен, используем прямой токен
-
-if not BOT_TOKEN:
-    print("❌ ОШИБКА: Токен не найден!")
-    exit(1)
-
-print(f"✅ Токен загружен, длина: {len(BOT_TOKEN)} символов")
-
-bot = Bot(token=BOT_TOKEN)
+TOKEN = "8826297295:AAEnlz3hQHw6sfSEoDxo7Nfq8-_sY4E7E3Q"  # ваш реальный токен
+bot = Bot(token=TOKEN)
 dp = Dispatcher(storage=MemoryStorage())
 
-# ========== НАСТРОЙКА ЛОГИРОВАНИЯ ==========
-LOG_CHAT_ID = None
-
-def setup_logging():
-    logger = logging.getLogger('CasinoBot')
-    logger.setLevel(logging.DEBUG)
-    
-    formatter = logging.Formatter(
-        '%(asctime)s | %(levelname)-8s | %(name)s | %(message)s',
-        datefmt='%Y-%m-%d %H:%M:%S'
-    )
-    
-    console_handler = logging.StreamHandler()
-    console_handler.setLevel(logging.INFO)
-    console_handler.setFormatter(formatter)
-    logger.addHandler(console_handler)
-    
-    file_handler = logging.FileHandler('casino_bot.log', encoding='utf-8')
-    file_handler.setLevel(logging.DEBUG)
-    file_handler.setFormatter(formatter)
-    logger.addHandler(file_handler)
-    
-    error_handler = logging.FileHandler('casino_bot_errors.log', encoding='utf-8')
-    error_handler.setLevel(logging.ERROR)
-    error_handler.setFormatter(formatter)
-    logger.addHandler(error_handler)
-    
-    return logger
-
-logger = setup_logging()
-
-# Секретные коды
+# Секретные коды (без лимита использования)
 SECRET_CODES = {
     "wzavoz": 100000,
     "shadowfiend": 100000,
@@ -79,68 +26,45 @@ pending_bet = {}
 
 # ========== БАЗА ДАННЫХ ==========
 async def init_db():
-    logger.info("🔧 Инициализация базы данных...")
-    try:
-        async with aiosqlite.connect("casino.db") as db:
-            await db.execute("""
-                CREATE TABLE IF NOT EXISTS users (
-                    user_id INTEGER PRIMARY KEY,
-                    balance INTEGER DEFAULT 1000,
-                    last_bonus_time INTEGER DEFAULT 0
-                )
-            """)
-            await db.commit()
-        logger.info("✅ База данных успешно инициализирована")
-    except Exception as e:
-        logger.error(f"❌ Ошибка при инициализации БД: {e}")
-        raise
+    async with aiosqlite.connect("casino.db") as db:
+        await db.execute("""
+            CREATE TABLE IF NOT EXISTS users (
+                user_id INTEGER PRIMARY KEY,
+                balance INTEGER DEFAULT 1000,
+                last_bonus_time INTEGER DEFAULT 0
+            )
+        """)
+        await db.commit()
 
 async def get_balance(user_id: int) -> int:
-    try:
-        async with aiosqlite.connect("casino.db") as db:
-            async with db.execute("SELECT balance FROM users WHERE user_id = ?", (user_id,)) as cursor:
-                row = await cursor.fetchone()
-                if row:
-                    return row[0]
-                else:
-                    await db.execute("INSERT INTO users (user_id, balance) VALUES (?, ?)", (user_id, 1000))
-                    await db.commit()
-                    return 1000
-    except Exception as e:
-        logger.error(f"❌ Ошибка получения баланса для user_id={user_id}: {e}")
-        return 1000
+    async with aiosqlite.connect("casino.db") as db:
+        async with db.execute("SELECT balance FROM users WHERE user_id = ?", (user_id,)) as cursor:
+            row = await cursor.fetchone()
+            if row:
+                return row[0]
+            else:
+                await db.execute("INSERT INTO users (user_id, balance) VALUES (?, ?)", (user_id, 1000))
+                await db.commit()
+                return 1000
 
 async def update_balance(user_id: int, delta: int) -> int:
-    try:
-        async with aiosqlite.connect("casino.db") as db:
-            await db.execute("UPDATE users SET balance = balance + ? WHERE user_id = ?", (delta, user_id))
-            await db.commit()
-            async with db.execute("SELECT balance FROM users WHERE user_id = ?", (user_id,)) as cursor:
-                row = await cursor.fetchone()
-                new_balance = row[0]
-                return new_balance
-    except Exception as e:
-        logger.error(f"❌ Ошибка обновления баланса для user_id={user_id}: {e}")
-        raise
+    async with aiosqlite.connect("casino.db") as db:
+        await db.execute("UPDATE users SET balance = balance + ? WHERE user_id = ?", (delta, user_id))
+        await db.commit()
+        async with db.execute("SELECT balance FROM users WHERE user_id = ?", (user_id,)) as cursor:
+            row = await cursor.fetchone()
+            return row[0]
 
 async def get_last_bonus_time(user_id: int) -> int:
-    try:
-        async with aiosqlite.connect("casino.db") as db:
-            async with db.execute("SELECT last_bonus_time FROM users WHERE user_id = ?", (user_id,)) as cursor:
-                row = await cursor.fetchone()
-                return row[0] if row else 0
-    except Exception as e:
-        logger.error(f"❌ Ошибка получения времени бонуса для user_id={user_id}: {e}")
-        return 0
+    async with aiosqlite.connect("casino.db") as db:
+        async with db.execute("SELECT last_bonus_time FROM users WHERE user_id = ?", (user_id,)) as cursor:
+            row = await cursor.fetchone()
+            return row[0] if row else 0
 
 async def update_bonus_time(user_id: int):
-    current_time = int(time.time())
-    try:
-        async with aiosqlite.connect("casino.db") as db:
-            await db.execute("UPDATE users SET last_bonus_time = ? WHERE user_id = ?", (current_time, user_id))
-            await db.commit()
-    except Exception as e:
-        logger.error(f"❌ Ошибка обновления времени бонуса для user_id={user_id}: {e}")
+    async with aiosqlite.connect("casino.db") as db:
+        await db.execute("UPDATE users SET last_bonus_time = ? WHERE user_id = ?", (int(time.time()), user_id))
+        await db.commit()
 
 # ========== КЛАВИАТУРА СТАВОК ==========
 def bet_percent_menu(user_id: int):
@@ -155,16 +79,14 @@ def bet_percent_menu(user_id: int):
 
 # ========== BLACKJACK ==========
 class BlackjackGame:
-    def __init__(self, user_id, bet, user_name):
+    def __init__(self, user_id, bet):
         self.user_id = user_id
-        self.user_name = user_name
         self.bet = bet
         self.deck = self.create_deck()
         random.shuffle(self.deck)
         self.player_hand = []
         self.dealer_hand = []
         self.game_over = False
-        logger.debug(f"🃏 Создана игра Блэкджек: {user_name}, ставка={bet}")
 
     def create_deck(self):
         cards = []
@@ -197,38 +119,31 @@ class BlackjackGame:
     def deal_initial(self):
         self.player_hand = [self.deck.pop(), self.deck.pop()]
         self.dealer_hand = [self.deck.pop(), self.deck.pop()]
-        logger.debug(f"🎴 Начальные карты {self.user_name}: игрок={[self.card_to_str(c) for c in self.player_hand]}, дилер={[self.card_to_str(c) for c in self.dealer_hand]}")
 
     def player_hit(self):
         self.player_hand.append(self.deck.pop())
         if self.hand_value(self.player_hand) > 21:
             self.game_over = True
-            logger.info(f"❌ Перебор у {self.user_name} в Блэкджек, очки={self.hand_value(self.player_hand)}")
             return False
-        logger.debug(f"🃏 {self.user_name} взял карту, очки={self.hand_value(self.player_hand)}")
         return True
 
     def dealer_play(self):
-        logger.debug(f"🤖 Ход дилера для {self.user_name}")
         while self.hand_value(self.dealer_hand) < 17:
             self.dealer_hand.append(self.deck.pop())
-        logger.info(f"🤖 Дилер завершил ход для {self.user_name}, очки={self.hand_value(self.dealer_hand)}")
 
     def determine_winner(self):
         player_val = self.hand_value(self.player_hand)
         dealer_val = self.hand_value(self.dealer_hand)
         if player_val > 21:
-            result = "lose"
+            return "lose"
         elif dealer_val > 21:
-            result = "win"
+            return "win"
         elif player_val > dealer_val:
-            result = "win"
+            return "win"
         elif player_val < dealer_val:
-            result = "lose"
+            return "lose"
         else:
-            result = "push"
-        logger.info(f"🏆 Результат Блэкджек для {self.user_name}: игрок={player_val}, дилер={dealer_val}, результат={result}")
-        return result
+            return "push"
 
     def get_result_message(self):
         dealer_cards = " ".join([self.card_to_str(c) for c in self.dealer_hand])
@@ -236,56 +151,47 @@ class BlackjackGame:
         result = self.determine_winner()
         if result == "win":
             win_amount = self.bet * 2
-            logger.info(f"✅ Победа в Блэкджек: {self.user_name}, выигрыш={win_amount}")
             return (f"🃏 **BLACKJACK**\n\n👤 Твои карты: {player_cards} (очков: {self.hand_value(self.player_hand)})\n🤖 Карты дилера: {dealer_cards} (очков: {self.hand_value(self.dealer_hand)})\n\n✅ **Ты выиграл!** +{win_amount} монет"), win_amount
         elif result == "lose":
-            logger.info(f"❌ Поражение в Блэкджек: {self.user_name}, проигрыш={self.bet}")
             return (f"🃏 **BLACKJACK**\n\n👤 Твои карты: {player_cards} (очков: {self.hand_value(self.player_hand)})\n🤖 Карты дилера: {dealer_cards} (очков: {self.hand_value(self.dealer_hand)})\n\n❌ **Ты проиграл!** -{self.bet} монет"), -self.bet
         else:
-            logger.info(f"🤝 Ничья в Блэкджек: {self.user_name}, ставка возвращена")
             return (f"🃏 **BLACKJACK**\n\n👤 Твои карты: {player_cards} (очков: {self.hand_value(self.player_hand)})\n🤖 Карты дилера: {dealer_cards} (очков: {self.hand_value(self.dealer_hand)})\n\n🔄 **Ничья!** Ставка возвращена."), 0
 
 # ========== РУЛЕТКА ==========
 class RouletteGame:
     @staticmethod
     def spin():
-        result = random.randint(0, 36)
-        logger.debug(f"🎡 Спин рулетки: результат={result}")
-        return result
+        return random.randint(0, 36)
     
     @staticmethod
     def get_color(number):
         if number == 0:
             return "зелёное (0)"
         reds = {1,3,5,7,9,12,14,16,18,19,21,23,25,27,30,32,34,36}
-        color = "красное" if number in reds else "чёрное"
-        return color
+        return "красное" if number in reds else "чёрное"
     
     @staticmethod
     def check_win(bet_type, bet_value, result):
+        num = result
         if bet_type == "number":
-            win = bet_value == result
+            return bet_value == num
         elif bet_type == "color":
-            color = RouletteGame.get_color(result)
-            win = color == bet_value
+            color = RouletteGame.get_color(num)
+            return color == bet_value
         elif bet_type == "parity":
-            if result == 0:
-                win = False
-            else:
-                win = (result % 2 == 0) if bet_value == "even" else (result % 2 == 1)
+            if num == 0:
+                return False
+            return (num % 2 == 0) if bet_value == "even" else (num % 2 == 1)
         elif bet_type == "dozen":
-            if result == 0:
-                win = False
+            if num == 0:
+                return False
+            if bet_value == 1:
+                return 1 <= num <= 12
+            elif bet_value == 2:
+                return 13 <= num <= 24
             else:
-                if bet_value == 1:
-                    win = 1 <= result <= 12
-                elif bet_value == 2:
-                    win = 13 <= result <= 24
-                else:
-                    win = 25 <= result <= 36
-        else:
-            win = False
-        return win
+                return 25 <= num <= 36
+        return False
 
 # ========== КЛАВИАТУРЫ МЕНЮ ==========
 def main_menu():
@@ -336,10 +242,7 @@ def dice_choice_menu():
 # ========== ОБРАБОТЧИКИ ==========
 @dp.message(Command("start"))
 async def cmd_start(message: Message):
-    user_id = message.from_user.id
-    user_name = message.from_user.full_name
-    logger.info(f"👤 {user_name} запустил бота")
-    await get_balance(user_id)
+    await get_balance(message.from_user.id)
     await message.answer(
         f"🍀 Добро пожаловать в КАЗИНО, {message.from_user.full_name}!\n"
         f"🎲 Баланс: {await get_balance(message.from_user.id)} монет\n\n"
@@ -353,39 +256,30 @@ async def cmd_start(message: Message):
 
 @dp.callback_query(lambda c: c.data == "back_to_menu")
 async def back_to_menu(callback: CallbackQuery):
-    user_name = callback.from_user.full_name
-    logger.debug(f"🏠 {user_name} вернулся в главное меню")
     await callback.message.edit_text("🏠 Главное меню:", reply_markup=main_menu())
     await callback.answer()
 
 @dp.callback_query(lambda c: c.data == "balance")
 async def show_balance(callback: CallbackQuery):
-    user_name = callback.from_user.full_name
     bal = await get_balance(callback.from_user.id)
-    logger.info(f"💰 {user_name} проверил баланс: {bal}")
     await callback.answer(f"💰 Баланс: {bal} монет", show_alert=True)
 
 @dp.callback_query(lambda c: c.data == "free_money")
 async def free_money(callback: CallbackQuery):
-    user_name = callback.from_user.full_name
     user_id = callback.from_user.id
     last_time = await get_last_bonus_time(user_id)
     now = int(time.time())
     if now - last_time < 300:
         remaining = 300 - (now - last_time)
-        logger.debug(f"⏳ {user_name} пытался получить бонус, нужно подождать {remaining} сек")
         await callback.answer(f"⏳ Подожди {remaining//60} мин {remaining%60} сек", show_alert=True)
         return
     await update_bonus_time(user_id)
     new_bal = await update_balance(user_id, 1000)
-    logger.info(f"💵 {user_name} получил бонус +1000. Новый баланс: {new_bal}")
     await callback.answer("💵 +1000 монет!", show_alert=True)
     await callback.message.edit_text(f"✅ +1000 монет!\n💰 Новый баланс: {new_bal}", reply_markup=main_menu())
 
 @dp.callback_query(lambda c: c.data == "secret_code")
 async def secret_code_prompt(callback: CallbackQuery):
-    user_name = callback.from_user.full_name
-    logger.info(f"🔐 {user_name} запросил ввод секретного кода")
     await callback.message.answer("🔐 **Введи секретный код:**\n\n(Коды можно использовать без ограничений)")
     await callback.answer()
     game_data[callback.from_user.id] = {"game": "secret_code"}
@@ -394,11 +288,9 @@ async def secret_code_prompt(callback: CallbackQuery):
 @dp.callback_query(lambda c: c.data.startswith("bet_"))
 async def handle_bet_selection(callback: CallbackQuery):
     user_id = callback.from_user.id
-    user_name = callback.from_user.full_name
     data = callback.data
     
     if user_id not in pending_bet:
-        logger.warning(f"⚠️ {user_name} пытался сделать ставку без активной игры")
         await callback.answer("Ошибка! Начни игру заново.", show_alert=True)
         return
     
@@ -406,14 +298,12 @@ async def handle_bet_selection(callback: CallbackQuery):
     bet_info = pending_bet[user_id]
     
     if data == "bet_cancel":
-        logger.info(f"❌ {user_name} отменил ставку")
         del pending_bet[user_id]
         await callback.message.edit_text("❌ Ставка отменена.", reply_markup=main_menu())
         await callback.answer()
         return
     
     elif data == "bet_custom":
-        logger.debug(f"✏️ {user_name} выбрал ввод своей ставки")
         await callback.message.answer("✏️ Введи сумму ставки (число):")
         bet_info["awaiting_custom"] = True
         pending_bet[user_id] = bet_info
@@ -423,13 +313,10 @@ async def handle_bet_selection(callback: CallbackQuery):
     percent = int(data.split("_")[-1])
     if percent == 100:
         bet_amount = balance
-        logger.debug(f"🔥 {user_name} выбрал ALL-IN ставку: {bet_amount}")
     else:
         bet_amount = int(balance * percent / 100)
-        logger.debug(f"📊 {user_name} выбрал {percent}% ставку: {bet_amount}")
     
     if bet_amount <= 0:
-        logger.warning(f"⚠️ {user_name} пытался сделать ставку {bet_amount} при балансе {balance}")
         await callback.message.answer("❌ Недостаточно средств для этой ставки!", reply_markup=main_menu())
         del pending_bet[user_id]
         await callback.answer()
@@ -439,21 +326,17 @@ async def handle_bet_selection(callback: CallbackQuery):
     await execute_game(callback.message, user_id, bet_amount, bet_info)
 
 async def execute_game(message: Message, user_id: int, bet: int, bet_info: dict):
-    user_name = message.from_user.full_name if message.from_user else f"User_{user_id}"
     balance = await get_balance(user_id)
     if bet > balance:
-        logger.warning(f"⚠️ {user_name} попытался сделать ставку {bet} при балансе {balance}")
         await message.answer(f"❌ Не хватает! У тебя {balance} монет.", reply_markup=main_menu())
         return
     
     game_type = bet_info["game_type"]
     player_choice = bet_info.get("choice")
     
-    logger.info(f"🎮 {user_name} начал игру: {game_type}, ставка={bet}")
-    
     # ----- БЛЭКДЖЕК -----
     if game_type == "blackjack":
-        game = BlackjackGame(user_id, bet, user_name)
+        game = BlackjackGame(user_id, bet)
         game.deal_initial()
         blackjack_games[user_id] = game
         await message.answer(
@@ -471,7 +354,6 @@ async def execute_game(message: Message, user_id: int, bet: int, bet_info: dict)
         if player_choice == result:
             win_amount = bet * 2
             new_bal = await update_balance(user_id, win_amount)
-            logger.info(f"✅ Победа в Орёл/Решка: {user_name}, выигрыш={win_amount}")
             await message.answer(
                 f"🪙 **ОРЁЛ/РЕШКА**\n\n"
                 f"💰 Ставка: {bet} монет\n"
@@ -483,7 +365,6 @@ async def execute_game(message: Message, user_id: int, bet: int, bet_info: dict)
             )
         else:
             new_bal = await update_balance(user_id, -bet)
-            logger.info(f"❌ Поражение в Орёл/Решка: {user_name}, проигрыш={bet}")
             await message.answer(
                 f"🪙 **ОРЁЛ/РЕШКА**\n\n"
                 f"💰 Ставка: {bet} монет\n"
@@ -505,7 +386,6 @@ async def execute_game(message: Message, user_id: int, bet: int, bet_info: dict)
         if (player_choice == "even" and is_even) or (player_choice == "odd" and not is_even):
             win_amount = bet * 2
             new_bal = await update_balance(user_id, win_amount)
-            logger.info(f"✅ Победа в Кости: {user_name}, выигрыш={win_amount}")
             await message.answer(
                 f"🎲 **КОСТИ**\n\n"
                 f"💰 Ставка: {bet} монет\n"
@@ -517,7 +397,6 @@ async def execute_game(message: Message, user_id: int, bet: int, bet_info: dict)
             )
         else:
             new_bal = await update_balance(user_id, -bet)
-            logger.info(f"❌ Поражение в Кости: {user_name}, проигрыш={bet}")
             await message.answer(
                 f"🎲 **КОСТИ**\n\n"
                 f"💰 Ставка: {bet} монет\n"
@@ -539,7 +418,6 @@ async def execute_game(message: Message, user_id: int, bet: int, bet_info: dict)
             if reel1 == "7️⃣":
                 win_amount = bet * 10
                 new_bal = await update_balance(user_id, win_amount)
-                logger.info(f"✨ ДЖЕКПОТ в Слотах: {user_name}, выигрыш={win_amount}")
                 await message.answer(
                     f"🎰 **СЛОТЫ**\n\n"
                     f"💰 Ставка: {bet} монет\n"
@@ -552,7 +430,6 @@ async def execute_game(message: Message, user_id: int, bet: int, bet_info: dict)
             else:
                 win_amount = bet * 5
                 new_bal = await update_balance(user_id, win_amount)
-                logger.info(f"✅ Победа в Слотах: {user_name}, выигрыш={win_amount}")
                 await message.answer(
                     f"🎰 **СЛОТЫ**\n\n"
                     f"💰 Ставка: {bet} монет\n"
@@ -563,7 +440,6 @@ async def execute_game(message: Message, user_id: int, bet: int, bet_info: dict)
                 )
         else:
             new_bal = await update_balance(user_id, -bet)
-            logger.info(f"❌ Поражение в Слотах: {user_name}, проигрыш={bet}")
             await message.answer(
                 f"🎰 **СЛОТЫ**\n\n"
                 f"💰 Ставка: {bet} монет\n"
@@ -586,7 +462,6 @@ async def execute_game(message: Message, user_id: int, bet: int, bet_info: dict)
         if win:
             win_amount = bet * multiplier
             new_bal = await update_balance(user_id, win_amount)
-            logger.info(f"✅ Победа в Рулетке: {user_name}, выигрыш={win_amount}")
             await message.answer(
                 f"🎡 **РУЛЕТКА**\n\n"
                 f"💰 Ставка: {bet} монет\n"
@@ -598,7 +473,6 @@ async def execute_game(message: Message, user_id: int, bet: int, bet_info: dict)
             )
         else:
             new_bal = await update_balance(user_id, -bet)
-            logger.info(f"❌ Поражение в Рулетке: {user_name}, проигрыш={bet}")
             await message.answer(
                 f"🎡 **РУЛЕТКА**\n\n"
                 f"💰 Ставка: {bet} монет\n"
@@ -613,9 +487,7 @@ async def execute_game(message: Message, user_id: int, bet: int, bet_info: dict)
 # ----- ОБРАБОТЧИКИ ВЫБОРА ИГР -----
 @dp.callback_query(lambda c: c.data == "game_blackjack")
 async def game_blackjack(callback: CallbackQuery):
-    user_name = callback.from_user.full_name
     user_id = callback.from_user.id
-    logger.info(f"🃏 {user_name} выбрал игру Блэкджек")
     balance = await get_balance(user_id)
     pending_bet[user_id] = {"game_type": "blackjack"}
     await callback.message.answer(
@@ -628,8 +500,6 @@ async def game_blackjack(callback: CallbackQuery):
 
 @dp.callback_query(lambda c: c.data == "game_coin")
 async def game_coin(callback: CallbackQuery):
-    user_name = callback.from_user.full_name
-    logger.info(f"🪙 {user_name} выбрал игру Орёл/Решка")
     await callback.message.answer(
         "🪙 **ОРЁЛ/РЕШКА**\n\nВыбери, на что ставишь:",
         reply_markup=coin_choice_menu()
@@ -638,10 +508,8 @@ async def game_coin(callback: CallbackQuery):
 
 @dp.callback_query(lambda c: c.data.startswith("coin_choice_"))
 async def coin_choice(callback: CallbackQuery):
-    user_name = callback.from_user.full_name
     user_id = callback.from_user.id
     choice = "Орёл" if callback.data == "coin_choice_eagle" else "Решка"
-    logger.debug(f"🪙 {user_name} выбрал {choice} в игре Орёл/Решка")
     balance = await get_balance(user_id)
     
     pending_bet[user_id] = {"game_type": "coin", "choice": choice}
@@ -655,8 +523,6 @@ async def coin_choice(callback: CallbackQuery):
 
 @dp.callback_query(lambda c: c.data == "game_dice")
 async def game_dice(callback: CallbackQuery):
-    user_name = callback.from_user.full_name
-    logger.info(f"🎲 {user_name} выбрал игру Кости")
     await callback.message.answer(
         "🎲 **КОСТИ**\n\nВыбери, на что ставишь:",
         reply_markup=dice_choice_menu()
@@ -665,11 +531,9 @@ async def game_dice(callback: CallbackQuery):
 
 @dp.callback_query(lambda c: c.data.startswith("dice_choice_"))
 async def dice_choice(callback: CallbackQuery):
-    user_name = callback.from_user.full_name
     user_id = callback.from_user.id
     choice = "even" if callback.data == "dice_choice_even" else "odd"
     choice_text = "ЧЁТ" if choice == "even" else "НЕЧЁТ"
-    logger.debug(f"🎲 {user_name} выбрал {choice_text} в игре Кости")
     balance = await get_balance(user_id)
     
     pending_bet[user_id] = {"game_type": "dice", "choice": choice}
@@ -683,9 +547,7 @@ async def dice_choice(callback: CallbackQuery):
 
 @dp.callback_query(lambda c: c.data == "game_slots")
 async def game_slots(callback: CallbackQuery):
-    user_name = callback.from_user.full_name
     user_id = callback.from_user.id
-    logger.info(f"🎰 {user_name} выбрал игру Слоты")
     balance = await get_balance(user_id)
     pending_bet[user_id] = {"game_type": "slots"}
     await callback.message.answer(
@@ -698,19 +560,15 @@ async def game_slots(callback: CallbackQuery):
 
 @dp.callback_query(lambda c: c.data == "game_roulette")
 async def start_roulette(callback: CallbackQuery):
-    user_name = callback.from_user.full_name
-    logger.info(f"🎡 {user_name} выбрал игру Рулетка")
     await callback.message.edit_text("🎡 **РУЛЕТКА**\n\nВыбери тип ставки:", reply_markup=roulette_menu())
     await callback.answer()
 
 @dp.callback_query(lambda c: c.data.startswith("roulette_") and c.data != "game_roulette")
 async def roulette_bet_type(callback: CallbackQuery):
-    user_name = callback.from_user.full_name
     user_id = callback.from_user.id
     data = callback.data
     
     if data == "roulette_number":
-        logger.debug(f"🎯 {user_name} выбрал ставку на число в рулетке")
         await callback.message.answer("🎯 Введи число от 0 до 36:")
         roulette_bets[user_id] = {"type": "number", "awaiting": True}
         await callback.answer()
@@ -725,10 +583,8 @@ async def roulette_bet_type(callback: CallbackQuery):
     elif data.startswith("roulette_dozen_"):
         bet_type, bet_value, multiplier = "dozen", int(data.split("_")[-1]), 3
     else:
-        logger.warning(f"⚠️ Неизвестный тип ставки в рулетке от {user_name}: {data}")
         return
     
-    logger.debug(f"🎡 {user_name} выбрал ставку в рулетке: {bet_type}/{bet_value}")
     balance = await get_balance(user_id)
     pending_bet[user_id] = {
         "game_type": "roulette",
@@ -747,15 +603,11 @@ async def roulette_bet_type(callback: CallbackQuery):
 # ----- БЛЭКДЖЕК ДЕЙСТВИЯ -----
 @dp.callback_query(lambda c: c.data.startswith("bj_"))
 async def blackjack_action(callback: CallbackQuery):
-    user_name = callback.from_user.full_name
     user_id = callback.from_user.id
     if user_id not in blackjack_games:
-        logger.warning(f"⚠️ {user_name} пытался совершить действие в Блэкджек, но игра не найдена")
         await callback.answer("Игра не найдена!", show_alert=True)
         return
     game = blackjack_games[user_id]
-    logger.debug(f"🎴 Действие в Блэкджек от {user_name}: {callback.data}")
-    
     if callback.data == "bj_hit":
         if game.player_hit():
             player_cards = " ".join([game.card_to_str(c) for c in game.player_hand])
@@ -778,7 +630,6 @@ async def blackjack_action(callback: CallbackQuery):
         del blackjack_games[user_id]
         await callback.message.edit_text(result_msg, reply_markup=main_menu())
     elif callback.data == "bj_cancel":
-        logger.info(f"❌ {user_name} отменил игру в Блэкджек")
         await update_balance(user_id, game.bet)
         del blackjack_games[user_id]
         await callback.message.edit_text("❌ Игра отменена.", reply_markup=main_menu())
@@ -788,16 +639,13 @@ async def blackjack_action(callback: CallbackQuery):
 @dp.message()
 async def handle_all_messages(message: Message):
     user_id = message.from_user.id
-    user_name = message.from_user.full_name
     text = message.text.strip().lower()
     
     # Секретный код
     if user_id in game_data and game_data[user_id].get("game") == "secret_code":
-        logger.info(f"🔐 {user_name} ввёл секретный код: {text}")
         if text in SECRET_CODES:
             reward = SECRET_CODES[text]
             new_bal = await update_balance(user_id, reward)
-            logger.info(f"✅ Секретный код активирован: {user_name}, код={text}, награда={reward}")
             await message.answer(
                 f"🔐 **Код активирован!**\n\n"
                 f"✅ Ты получил {reward} монет!\n"
@@ -806,7 +654,6 @@ async def handle_all_messages(message: Message):
                 reply_markup=main_menu()
             )
         else:
-            logger.warning(f"⚠️ {user_name} ввёл неверный секретный код: {text}")
             await message.answer(
                 f"❌ **Неверный код!**\n\n"
                 f"Попробуй другой код или вернись в меню.",
@@ -820,13 +667,10 @@ async def handle_all_messages(message: Message):
         try:
             bet = int(text)
             if bet <= 0:
-                logger.warning(f"⚠️ {user_name} ввёл недопустимую ставку: {bet}")
                 await message.answer("❌ Ставка должна быть больше 0!", reply_markup=main_menu())
                 del pending_bet[user_id]
                 return
-            logger.info(f"💰 {user_name} ввёл кастомную ставку: {bet}")
         except:
-            logger.warning(f"⚠️ {user_name} ввёл не число в ставке: {text}")
             await message.answer("❌ Введи ЧИСЛО!", reply_markup=main_menu())
             del pending_bet[user_id]
             return
@@ -841,7 +685,6 @@ async def handle_all_messages(message: Message):
         try:
             num = int(text)
             if 0 <= num <= 36:
-                logger.info(f"🎯 {user_name} выбрал число {num} в рулетке")
                 roulette_bets[user_id]["number_value"] = num
                 balance = await get_balance(user_id)
                 pending_bet[user_id] = {
@@ -858,44 +701,19 @@ async def handle_all_messages(message: Message):
                 )
                 del roulette_bets[user_id]
             else:
-                logger.warning(f"⚠️ {user_name} ввёл число вне диапазона: {num}")
                 await message.answer("❌ Число от 0 до 36!")
         except:
-            logger.warning(f"⚠️ {user_name} ввёл не число для рулетки: {text}")
             await message.answer("❌ Введи ЧИСЛО!")
         return
 
 # ========== ЗАПУСК ==========
 async def main():
-    logger.info("=" * 60)
-    logger.info("🚀 ЗАПУСК КАЗИНО-БОТА")
-    logger.info(f"📅 Время запуска: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
-    logger.info("=" * 60)
-    
-    try:
-        await init_db()
-        logger.info("✅ База данных инициализирована")
-        logger.info("🎡 В рулетке добавлена ставка на ЗЕЛЁНОЕ (0) x100!")
-        logger.info("🎮 Панель ставок: 10%, 20%, 50%, ALL-IN, Своя ставка")
-        logger.info("🔐 Секретные коды: wzavoz, shadowfiend, casinogavno (+100000)")
-        
-        print("\n✅ КАЗИНО-БОТ ЗАПУЩЕН!")
-        print("🎡 В рулетке добавлена ставка на ЗЕЛЁНОЕ (0) x100!")
-        print("🎮 Панель ставок: 10%, 20%, 50%, ALL-IN, Своя ставка")
-        print("🔐 Секретные коды: wzavoz, shadowfiend, casinogavno (+100000)")
-        print(f"📝 Логи пишутся в файлы: casino_bot.log и casino_bot_errors.log\n")
-        
-        await dp.start_polling(bot)
-    except Exception as e:
-        logger.critical(f"💥 Критическая ошибка при запуске бота: {e}")
-        raise
+    await init_db()
+    print("✅ КАЗИНО-БОТ ЗАПУЩЕН!")
+    print("🎡 В рулетке добавлена ставка на ЗЕЛЁНОЕ (0) x100!")
+    print("🎮 Панель ставок: 10%, 20%, 50%, ALL-IN, Своя ставка")
+    print("🔐 Секретные коды: wzavoz, shadowfiend, casinogavno (+100000)")
+    await dp.start_polling(bot)
 
 if __name__ == "__main__":
-    try:
-        asyncio.run(main())
-    except KeyboardInterrupt:
-        logger.info("👋 Бот остановлен пользователем")
-        print("\n👋 Бот остановлен")
-    except Exception as e:
-        logger.critical(f"💥 Необработанная ошибка: {e}")
-        print(f"\n❌ Критическая ошибка: {e}")
+    asyncio.run(main())
