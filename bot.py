@@ -11,12 +11,8 @@ from aiogram.types import Message, CallbackQuery, InlineKeyboardMarkup, InlineKe
 from aiogram.fsm.storage.memory import MemoryStorage
 from dotenv import load_dotenv
 
-# ========== ЗАГРУЗКА ПЕРЕМЕННЫХ ИЗ .env ==========
-load_dotenv()
-
 # Получаем токен из переменных окружения
 BOT_TOKEN = os.getenv("BOT_TOKEN")
-LOG_CHAT_ID = os.getenv("LOG_CHAT_ID", None)
 
 # Проверка наличия токена
 if not BOT_TOKEN:
