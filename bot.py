@@ -10,9 +10,18 @@ from aiogram.filters import Command
 from aiogram.types import Message, CallbackQuery, InlineKeyboardMarkup, InlineKeyboardButton
 from aiogram.fsm.storage.memory import MemoryStorage
 
-
-# Получаем токен из переменных окружения
+# ========== ТОКЕН (ВСТАВИТЬ НА САЙТЕ ХОСТИНГА) ==========
+# ⚠️ ВНИМАНИЕ: Токен нужно будет вставить в переменную окружения на сайте хостинга!
+# Название переменной: BOT_TOKEN
 BOT_TOKEN = os.getenv("BOT_TOKEN")
+
+# Проверка наличия токена
+if not BOT_TOKEN:
+    print("❌ ОШИБКА: Токен не найден в переменных окружения!")
+    print("На сайте хостинга создайте переменную окружения BOT_TOKEN с вашим токеном")
+    exit(1)
+
+print(f"✅ Токен загружен, длина: {len(BOT_TOKEN)} символов")
 
 bot = Bot(token=BOT_TOKEN)
 dp = Dispatcher(storage=MemoryStorage())
