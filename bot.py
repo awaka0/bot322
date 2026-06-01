@@ -3,13 +3,14 @@ import random
 import time
 import logging
 import aiosqlite
+import os
 from datetime import datetime
 from aiogram import Bot, Dispatcher, types
 from aiogram.filters import Command
 from aiogram.types import Message, CallbackQuery, InlineKeyboardMarkup, InlineKeyboardButton
 from aiogram.fsm.storage.memory import MemoryStorage
 
-TOKEN = "8826297295:AAEnlz3hQHw6sfSEoDxo7Nfq8-_sY4E7E3Q"  # ваш реальный токен
+BOT_TOKEN = os.getenv("BOT_TOKEN")
 bot = Bot(token=TOKEN)
 dp = Dispatcher(storage=MemoryStorage())
 
