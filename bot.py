@@ -13,7 +13,7 @@ from aiogram.fsm.storage.memory import MemoryStorage
 # ========== ТОКЕН (ВСТАВИТЬ НА САЙТЕ ХОСТИНГА) ==========
 # ⚠️ ВНИМАНИЕ: Токен нужно будет вставить в переменную окружения на сайте хостинга!
 # Название переменной: BOT_TOKEN
-BOT_TOKEN = os.getenv("BOT_TOKEN")
+BOT_TOKEN = ("BOT_TOKEN")
 
 # Проверка наличия токена
 if not BOT_TOKEN:
