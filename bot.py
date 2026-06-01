@@ -10,15 +10,22 @@ from aiogram.filters import Command
 from aiogram.types import Message, CallbackQuery, InlineKeyboardMarkup, InlineKeyboardButton
 from aiogram.fsm.storage.memory import MemoryStorage
 
-# ========== ТОКЕН (ВСТАВИТЬ НА САЙТЕ ХОСТИНГА) ==========
-# ⚠️ ВНИМАНИЕ: Токен нужно будет вставить в переменную окружения на сайте хостинга!
-# Название переменной: BOT_TOKEN
-BOT_TOKEN = ("BOT_TOKEN")
+# ========== ТОКЕН (ПРЯМАЯ ВСТАВКА ДЛЯ КОНТЕЙНЕРА) ==========
+# ВАЖНО: При публикации замените на безопасный способ!
+BOT_TOKEN = "8826297295:AAEnlz3hQHw6sfSEoDxo7Nfq8-_sY4E7E3Q"
 
-# Проверка наличия токена
+# Попробуем загрузить из .env если есть (но не обязательно)
+try:
+    from dotenv import load_dotenv
+    load_dotenv()
+    env_token = os.getenv("BOT_TOKEN")
+    if env_token:
+        BOT_TOKEN = env_token
+except ImportError:
+    pass  # dotenv не установлен, используем прямой токен
+
 if not BOT_TOKEN:
-    print("❌ ОШИБКА: Токен не найден в переменных окружения!")
-    print("На сайте хостинга создайте переменную окружения BOT_TOKEN с вашим токеном")
+    print("❌ ОШИБКА: Токен не найден!")
     exit(1)
 
 print(f"✅ Токен загружен, длина: {len(BOT_TOKEN)} символов")
@@ -27,6 +34,8 @@ bot = Bot(token=BOT_TOKEN)
 dp = Dispatcher(storage=MemoryStorage())
 
 # ========== НАСТРОЙКА ЛОГИРОВАНИЯ ==========
+LOG_CHAT_ID = None
+
 def setup_logging():
     logger = logging.getLogger('CasinoBot')
     logger.setLevel(logging.DEBUG)
@@ -108,7 +117,8 @@ async def update_balance(user_id: int, delta: int) -> int:
             await db.commit()
             async with db.execute("SELECT balance FROM users WHERE user_id = ?", (user_id,)) as cursor:
                 row = await cursor.fetchone()
-                return row[0]
+                new_balance = row[0]
+                return new_balance
     except Exception as e:
         logger.error(f"❌ Ошибка обновления баланса для user_id={user_id}: {e}")
         raise
