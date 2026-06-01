@@ -9,18 +9,10 @@ from aiogram import Bot, Dispatcher, types
 from aiogram.filters import Command
 from aiogram.types import Message, CallbackQuery, InlineKeyboardMarkup, InlineKeyboardButton
 from aiogram.fsm.storage.memory import MemoryStorage
-from dotenv import load_dotenv
+
 
 # Получаем токен из переменных окружения
 BOT_TOKEN = os.getenv("BOT_TOKEN")
-
-# Проверка наличия токена
-if not BOT_TOKEN:
-    print("❌ ОШИБКА: Токен не найден в файле .env!")
-    print("Создайте файл .env и добавьте в него строку: BOT_TOKEN=ваш_токен")
-    exit(1)
-
-print(f"✅ Токен загружен из .env, длина: {len(BOT_TOKEN)} символов")
 
 bot = Bot(token=BOT_TOKEN)
 dp = Dispatcher(storage=MemoryStorage())
