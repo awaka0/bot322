@@ -10,39 +10,51 @@ from aiogram.filters import Command
 from aiogram.types import Message, CallbackQuery, InlineKeyboardMarkup, InlineKeyboardButton
 from aiogram.fsm.storage.memory import MemoryStorage
 
-BOT_TOKEN = os.getenv("BOT_TOKEN")
+# ========== ТОКЕН (ПРЯМАЯ ВСТАВКА ДЛЯ КОНТЕЙНЕРА) ==========
+# ВАЖНО: При публикации замените на безопасный способ!
+BOT_TOKEN = "8826297295:AAEnlz3hQHw6sfSEoDxo7Nfq8-_sY4E7E3Q"
+
+# Попробуем загрузить из .env если есть (но не обязательно)
+try:
+    from dotenv import load_dotenv
+    load_dotenv()
+    env_token = os.getenv("BOT_TOKEN")
+    if env_token:
+        BOT_TOKEN = env_token
+except ImportError:
+    pass  # dotenv не установлен, используем прямой токен
+
+if not BOT_TOKEN:
+    print("❌ ОШИБКА: Токен не найден!")
+    exit(1)
+
+print(f"✅ Токен загружен, длина: {len(BOT_TOKEN)} символов")
+
 bot = Bot(token=BOT_TOKEN)
 dp = Dispatcher(storage=MemoryStorage())
 
 # ========== НАСТРОЙКА ЛОГИРОВАНИЯ ==========
-LOG_CHAT_ID = None  # Укажите ID чата для отправки критических логов (например: -1001234567890)
+LOG_CHAT_ID = None
 
 def setup_logging():
-    """Настройка системы логирования"""
-    
-    # Создаем логгер
     logger = logging.getLogger('CasinoBot')
     logger.setLevel(logging.DEBUG)
     
-    # Формат логов
     formatter = logging.Formatter(
         '%(asctime)s | %(levelname)-8s | %(name)s | %(funcName)s:%(lineno)d | %(message)s',
         datefmt='%Y-%m-%d %H:%M:%S'
     )
     
-    # Хендлер для вывода в консоль
     console_handler = logging.StreamHandler()
     console_handler.setLevel(logging.INFO)
     console_handler.setFormatter(formatter)
     logger.addHandler(console_handler)
     
-    # Хендлер для записи в файл (все уровни)
     file_handler = logging.FileHandler('casino_bot.log', encoding='utf-8')
     file_handler.setLevel(logging.DEBUG)
     file_handler.setFormatter(formatter)
     logger.addHandler(file_handler)
     
-    # Хендлер для ошибок в отдельный файл
     error_handler = logging.FileHandler('casino_bot_errors.log', encoding='utf-8')
     error_handler.setLevel(logging.ERROR)
     error_handler.setFormatter(formatter)
@@ -52,7 +64,7 @@ def setup_logging():
 
 logger = setup_logging()
 
-# Секретные коды (без лимита использования)
+# Секретные коды
 SECRET_CODES = {
     "wzavoz": 100000,
     "shadowfiend": 100000,
