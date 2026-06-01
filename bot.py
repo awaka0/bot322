@@ -11,7 +11,7 @@ from aiogram.types import Message, CallbackQuery, InlineKeyboardMarkup, InlineKe
 from aiogram.fsm.storage.memory import MemoryStorage
 
 BOT_TOKEN = os.getenv("BOT_TOKEN")
-bot = Bot(token=TOKEN)
+bot = Bot(token=BOT_TOKEN)
 dp = Dispatcher(storage=MemoryStorage())
 
 # ========== НАСТРОЙКА ЛОГИРОВАНИЯ ==========
